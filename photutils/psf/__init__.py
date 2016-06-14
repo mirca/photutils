@@ -5,3 +5,5 @@ photometry.
 """
 
 from .core import *
+from .daogroup import *
+from .nstar import *
