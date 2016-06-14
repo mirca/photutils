@@ -27,7 +27,8 @@ def nstar(image, groups, shape, fitter, psf_model, weights=None,
     psf_model : `~astropy.modeling.Fittable2DModel` 
         The PSF/PRF analytical model. This model must have centroid and flux
         as parameters.
-    weights :
+    weights : numpy.ndarray
+        Weights used in the fitting procedure.
     psf_kwargs : dict
         Fixed parameters to be passed to `psf_model`.
     plot_regions : boolean
@@ -169,6 +170,8 @@ def _extract_shape_and_data(shape, group, image):
     ymax = int(np.around(np.max(group['y_0'])) + shape[1])
     y,x = np.mgrid[ymin:ymax+1, xmin:xmax+1]
 
+    print(image[ymin:ymax+1, xmin:xmax+1].shape)
+    
     return x, y, image[ymin:ymax+1, xmin:xmax+1]
 
 
