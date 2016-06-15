@@ -59,8 +59,9 @@ def nstar(image, groups, shape, fitter, psf_model, weights=None,
                                             weights)
                 param_table = _model_params_to_table(fitted_model, groups[n])
                 result_tab = vstack([result_tab, param_table])
-                image = subtract_psf(image, psf_model(**psf_kwargs),
-                                     param_table)
+                # image = subtract_psf(image, psf_model(**psf_kwargs),
+                #                      param_table)
+                image = _subtract_psf(image, x, y, fitted_model)
                 models_order.remove(curr_order)
                 del groups[n]
                 N = N - 1
@@ -170,8 +171,6 @@ def _extract_shape_and_data(shape, group, image):
     ymax = int(np.around(np.max(group['y_0'])) + shape[1])
     y,x = np.mgrid[ymin:ymax+1, xmin:xmax+1]
 
-    print(image[ymin:ymax+1, xmin:xmax+1].shape)
-    
     return x, y, image[ymin:ymax+1, xmin:xmax+1]
 
 
@@ -203,3 +202,9 @@ def _show_region(verts):
     path = Path(verts, codes)
     patch = patches.PathPatch(path, facecolor="none", lw=1)
     return patch
+
+# No need for this. Should use photutils.psf.subtract_psf instead
+def _subtract_psf(image, x, y, fitted_model):
+    psf_image = np.zeros(image.shape)
+    psf_image[y,x] = fitted_model(x,y)
+    return image - psf_image
