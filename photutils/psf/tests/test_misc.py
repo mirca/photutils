@@ -151,6 +151,8 @@ def test_get_grouped_psf_model():
     gpsf = get_grouped_psf_model(igp, tab)
 
     assert gpsf.x_0_0 == 1
+    assert gpsf.x_0_1 == 2
+    assert gpsf.y_0_0 == 3
     assert gpsf.y_0_1 == 4
     assert gpsf.flux_0 == 0.5
     assert gpsf.flux_1 == 1
