@@ -265,6 +265,7 @@ def detect_sources(data, threshold, npixels, filter_kernel=None,
     return SegmentationImage(objlabels)
 
 
+@deprecated(0.3, alternative='PeakFinder')
 def find_peaks(data, threshold, box_size=3, footprint=None, mask=None,
                border_width=None, npeaks=np.inf, subpixel=False, error=None,
                wcs=None):

@@ -504,23 +504,88 @@ class PeakFinder(StarFinderBase):
             contain the local centroid and fitted peak value.
         """
 
-        peaks = find_peaks(data, threshold=self.threshold,
-                           box_size=self.box_size, footprint=self.footprint,
-                           mask=self.mask, border_width=self.border_width,
-                           npeaks=self.npeaks, subpixel=self.subpixel,
-                           error=self.error, wcs=self.wcs)
+        from scipy import ndimage
 
-        if len(peaks) > 0:
-            if self.subpixel:
-                peaks['y_centroid'].name = 'ycentroid'
-                peaks['x_centroid'].name = 'xcentroid'
-            else:
-                peaks['y_peak'].name = 'ycentroid'
-                peaks['x_peak'].name = 'xcentroid'
+        if np.all(data == data.flat[0]):
+            return []
 
-            peaks['id'] = np.arange(len(peaks)) + 1
+        if footprint is not None:
+            data_max = ndimage.maximum_filter(data, footprint=footprint,
+                                              mode='constant', cval=0.0)
+        else:
+            data_max = ndimage.maximum_filter(data, size=box_size,
+                                              mode='constant', cval=0.0)
 
-        return peaks
+        peak_goodmask = (data == data_max)    # good pixels are True
+
+        if mask is not None:
+            mask = np.asanyarray(mask)
+            if data.shape != mask.shape:
+                raise ValueError('data and mask must have the same shape')
+            peak_goodmask = np.logical_and(peak_goodmask, ~mask)
+
+        if border_width is not None:
+            for i in range(peak_goodmask.ndim):
+                peak_goodmask = peak_goodmask.swapaxes(0, i)
+                peak_goodmask[:border_width] = False
+                peak_goodmask[-border_width:] = False
+                peak_goodmask = peak_goodmask.swapaxes(0, i)
+
+        peak_goodmask = np.logical_and(peak_goodmask, (data > threshold))
+        y_peaks, x_peaks = peak_goodmask.nonzero()
+        peak_values = data[y_peaks, x_peaks]
+
+        if len(x_peaks) > npeaks:
+            idx = np.argsort(peak_values)[::-1][:npeaks]
+            x_peaks = x_peaks[idx]
+            y_peaks = y_peaks[idx]
+            peak_values = peak_values[idx]
+
+        if subpixel:
+            x_centroid, y_centroid = [], []
+            fit_peak_values = []
+            for (y_peak, x_peak) in zip(y_peaks, x_peaks):
+                rdata, rmask, rerror, slc = cutout_footprint(
+                    data, (x_peak, y_peak), box_size=box_size,
+                    footprint=footprint, mask=mask, error=error)
+                gaussian_fit = fit_2dgaussian(rdata, mask=rmask, error=rerror)
+                if gaussian_fit is None:
+                    x_cen, y_cen, fit_peak_value = np.nan, np.nan, np.nan
+                else:
+                    x_cen = slc[1].start + gaussian_fit.x_mean_1.value
+                    y_cen = slc[0].start + gaussian_fit.y_mean_1.value
+                    fit_peak_value = (gaussian_fit.amplitude_0.value +
+                                      gaussian_fit.amplitude_1.value)
+                x_centroid.append(x_cen)
+                y_centroid.append(y_cen)
+                fit_peak_values.append(fit_peak_value)
+
+            columns = (x_peaks, y_peaks, peak_values, x_centroid, y_centroid,
+                       fit_peak_values)
+            names = ('x_peak', 'y_peak', 'peak_value', 'xcentroid', 'ycentroid',
+                     'fit_peak_value')
+        else:
+            columns = (x_peaks, y_peaks, peak_values)
+            names = ('x_peak', 'y_peak', 'peak_value')
+
+        table = Table(columns, names=names)
+
+        if wcs is not None:
+            icrs_ra_peak, icrs_dec_peak = pixel_to_icrs_coords(x_peaks, y_peaks,
+                                                               wcs)
+            table.add_column(Column(icrs_ra_peak, name='icrs_ra_peak'), index=2)
+            table.add_column(Column(icrs_dec_peak, name='icrs_dec_peak'), index=3)
+
+            if subpixel:
+                icrs_ra_centroid, icrs_dec_centroid = pixel_to_icrs_coords(
+                    x_centroid, y_centroid, wcs)
+                idx = table.colnames.index('ycentroid')
+                table.add_column(Column(icrs_ra_centroid,
+                                        name='icrs_ra_centroid'), index=idx+1)
+                table.add_column(Column(icrs_dec_centroid,
+                                        name='icrs_dec_centroid'), index=idx+2)
+
+        return table
 
 
 def _findobjs(data, threshold, kernel, min_separation=None,
