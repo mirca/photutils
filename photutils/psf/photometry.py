@@ -101,7 +101,7 @@ class BasicPSFPhotometry(object):
     Notes
     -----
     Note that an ambiguity arises whenever ``finder`` and ``init_guesses``
-    (keyword argument for ``do_photometry``) are both not ``None``. In this
+    (keyword argument for ``do_photometry`)` are both not ``None``. In this
     case, ``finder`` is ignored and initial guesses are taken from
     ``init_guesses``. In addition, an warning is raised to remaind the user
     about this behavior.
@@ -250,8 +250,6 @@ class BasicPSFPhotometry(object):
         if init_guesses is not None:
             # make sure the code does not modify user's input
             init_guesses = init_guesses.copy()
-
-        if init_guesses is not None:
             if self.aperture_radius is None:
                 if 'flux_0' not in init_guesses.colnames:
                     raise ValueError('aperture_radius is None and could not be '
@@ -268,7 +266,6 @@ class BasicPSFPhotometry(object):
                 apertures = CircularAperture((init_guesses['x_0'],
                                               init_guesses['y_0']),
                                              r=self.aperture_radius)
-
                 init_guesses['flux_0'] = aperture_photometry(image,
                         apertures)['aperture_sum']
         else:
